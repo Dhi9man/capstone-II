@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LipSyncD — Deepfake Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">LipSync<strong>D</strong></span>
+    </div>
+    <nav class="nav">
+      <a href="#" class="nav-link active">Detect</a>
+      <a href="/about" class="nav-link">About</a>
+      <a href="https://github.com/ondyari/FaceForensics" target="_blank" class="nav-link">Dataset ↗</a>
+    </nav>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span>System Online</span>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg">
+    <canvas id="waveCanvas"></canvas>
+  </div>
+  <div class="hero-content">
+    <div class="hero-badge">Research · Audio-Video Forensics</div>
+    <h1 class="hero-title">
+      Lip-Sync<br><em>Deepfake</em><br>Detector
+    </h1>
+    <p class="hero-sub">
+      Cross-correlation of MFCC audio features against optical lip-motion
+      vectors to detect synchronization misalignment — the signature of
+      AI-generated lip-sync deepfakes.
+    </p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-n">SyncNet</span><span class="stat-l">Architecture</span></div>
+      <div class="stat"><span class="stat-n">FF++</span><span class="stat-l">Dataset</span></div>
+      <div class="stat"><span class="stat-n">PyTorch</span><span class="stat-l">Backend</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- MODEL STATUS BANNER -->
+  <div class="model-banner" id="modelBanner">
+    <span class="mb-icon">⚙</span>
+    <span id="modelBannerText">Checking model status...</span>
+  </div>
+
+  <!-- UPLOAD PANEL -->
+  <section class="panel upload-panel" id="uploadPanel">
+    <div class="panel-header">
+      <span class="panel-num">01</span>
+      <h2>Upload Video</h2>
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="videoFile" accept=".mp4,.avi,.mov,.mkv,.webm" hidden>
+      <div class="upload-icon">▶</div>
+      <div class="upload-title">Drop video here</div>
+      <div class="upload-sub">MP4, AVI, MOV, MKV, WEBM · Max 200MB</div>
+      <button class="btn-upload" onclick="document.getElementById('videoFile').click()">
+        Browse Files
+      </button>
+    </div>
+
+    <div class="file-preview" id="filePreview" style="display:none">
+      <div class="file-info">
+        <span class="file-icon">🎬</span>
+        <div>
+          <div class="file-name" id="fileName"></div>
+          <div class="file-size" id="fileSize"></div>
+        </div>
+        <button class="btn-clear" onclick="clearFile()">✕</button>
+      </div>
+    </div>
+
+    <div class="divider"><span>or try a demo</span></div>
+
+    <div class="demo-buttons">
+      <button class="btn-demo btn-demo-fake" onclick="runDemo('deepfake')">
+        <span class="demo-icon">⚠</span> Demo: Deepfake Video
+      </button>
+      <button class="btn-demo btn-demo-real" onclick="runDemo('authentic')">
+        <span class="demo-icon">✓</span> Demo: Authentic Video
+      </button>
+      <button class="btn-demo btn-demo-lipsync" onclick="runDemo('lipsync')">
+        <span class="demo-icon">◎</span> Demo: Lip-Sync Attack
+      </button>
+    </div>
+
+    <button class="btn-analyze" id="analyzeBtn" onclick="analyzeVideo()" disabled>
+      Analyze Video →
+    </button>
+  </section>
+
+  <!-- PROGRESS -->
+  <section class="panel progress-panel" id="progressPanel" style="display:none">
+    <div class="panel-header">
+      <span class="panel-num">02</span>
+      <h2>Processing</h2>
+    </div>
+    <div class="progress-steps" id="progressSteps">
+      <div class="step" data-step="0">
+        <div class="step-dot"></div>
+        <div class="step-text">Extracting audio features (MFCC, Chroma, RMS)</div>
+      </div>
+      <div class="step" data-step="1">
+        <div class="step-dot"></div>
+        <div class="step-text">Detecting faces & lip motion vectors</div>
+      </div>
+      <div class="step" data-step="2">
+        <div class="step-dot"></div>
+        <div class="step-text">Cross-correlating A/V synchronization</div>
+      </div>
+      <div class="step" data-step="3">
+        <div class="step-dot"></div>
+        <div class="step-text">Scanning compression artifacts</div>
+      </div>
+      <div class="step" data-step="4">
+        <div class="step-dot"></div>
+        <div class="step-text">Temporal consistency analysis</div>
+      </div>
+      <div class="step" data-step="5">
+        <div class="step-dot"></div>
+        <div class="step-text">Running sync transformer model</div>
+      </div>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="progressBar"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">Initializing...</div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="panel results-panel" id="resultsPanel" style="display:none">
+    <div class="panel-header">
+      <span class="panel-num">03</span>
+      <h2>Detection Results</h2>
+      <span class="job-id" id="jobId"></span>
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict-card" id="verdictCard">
+      <div class="verdict-left">
+        <div class="verdict-icon" id="verdictIcon"></div>
+        <div>
+          <div class="verdict-label">Verdict</div>
+          <div class="verdict-text" id="verdictText"></div>
+          <div class="verdict-risk" id="verdictRisk"></div>
+        </div>
+      </div>
+      <div class="verdict-right">
+        <div class="gauge-wrapper">
+          <canvas id="gaugeCanvas" width="160" height="100"></canvas>
+          <div class="gauge-score" id="gaugeScore"></div>
+          <div class="gauge-label">Deepfake<br>Probability</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score Breakdown -->
+    <div class="scores-grid" id="scoresGrid">
+      <div class="score-card" id="sc-sync">
+        <div class="sc-label">Sync Score</div>
+        <div class="sc-bar-outer"><div class="sc-bar-inner"></div></div>
+        <div class="sc-value"></div>
+        <div class="sc-desc">A/V cross-correlation lag</div>
+      </div>
+      <div class="score-card" id="sc-artifact">
+        <div class="sc-label">Artifact Score</div>
+        <div class="sc-bar-outer"><div class="sc-bar-inner"></div></div>
+        <div class="sc-value"></div>
+        <div class="sc-desc">Compression & blending anomalies</div>
+      </div>
+      <div class="score-card" id="sc-temporal">
+        <div class="sc-label">Temporal Score</div>
+        <div class="sc-bar-outer"><div class="sc-bar-inner"></div></div>
+        <div class="sc-value"></div>
+        <div class="sc-desc">Inter-frame consistency</div>
+      </div>
+      <div class="score-card" id="sc-model">
+        <div class="sc-label">Model Score</div>
+        <div class="sc-bar-outer"><div class="sc-bar-inner"></div></div>
+        <div class="sc-value"></div>
+        <div class="sc-desc">Transformer classifier output</div>
+      </div>
+    </div>
+
+    <!-- Timeline Chart -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>Deepfake Probability Timeline</h3>
+        <span class="chart-sub">Per-segment analysis across video duration</span>
+      </div>
+      <canvas id="timelineChart" height="120"></canvas>
+    </div>
+
+    <!-- MFCC Heatmap -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>MFCC Feature Heatmap</h3>
+        <span class="chart-sub">Mel-Frequency Cepstral Coefficients — anomaly bands visible in deepfakes</span>
+      </div>
+      <canvas id="mfccCanvas" width="700" height="130"></canvas>
+    </div>
+
+    <!-- Sync Details -->
+    <div class="sync-details" id="syncDetails"></div>
+
+    <!-- Library Status -->
+    <div class="libs-status" id="libsStatus"></div>
+
+    <!-- Analyze Again -->
+    <button class="btn-again" onclick="resetUI()">← Analyze Another Video</button>
+  </section>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <span class="logo-text">LipSync<strong>D</strong></span>
+      <span class="footer-sub">Audio-Video Synchronization Deepfake Detection · Research Project</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/ondyari/FaceForensics" target="_blank">FaceForensics++ Dataset</a>
+      <a href="https://www.robots.ox.ac.uk/~vgg/data/lip_reading/" target="_blank">LRW Dataset</a>
+      <a href="https://arxiv.org/abs/1904.08000" target="_blank">SyncNet Paper</a>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

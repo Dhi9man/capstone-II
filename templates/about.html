@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — LipSyncD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/about.css') }}">
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="logo"><span class="logo-icon">◈</span><a href="/" style="text-decoration:none;color:inherit"><span class="logo-text">LipSync<strong>D</strong></span></a></div>
+    <nav class="nav">
+      <a href="/" class="nav-link">Detect</a>
+      <a href="/about" class="nav-link active">About</a>
+      <a href="https://github.com/ondyari/FaceForensics" target="_blank" class="nav-link">Dataset ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="about-main">
+  <div class="about-hero">
+    <div class="about-badge">How It Works</div>
+    <h1>Detection Pipeline</h1>
+    <p class="about-intro">A multi-stage forensic analysis pipeline combining classical signal processing with deep learning.</p>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num">01</div>
+      <div class="pipe-content">
+        <h3>Audio Feature Extraction</h3>
+        <p>Using <strong>librosa</strong>, we extract 40-dimensional MFCC (Mel-Frequency Cepstral Coefficients), chroma features, spectral centroid, and RMS energy at 16kHz. These capture the phonetic content of speech with high temporal resolution.</p>
+        <code>librosa.feature.mfcc(y, sr=16000, n_mfcc=40)</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">02</div>
+      <div class="pipe-content">
+        <h3>Lip Motion Detection</h3>
+        <p>Using <strong>OpenCV</strong> Haar cascade classifiers, we locate the face and approximate the lip region (lower 35% of detected face bounding box). Lip pixel intensity variance tracks mouth openness over time.</p>
+        <code>cv2.CascadeClassifier('haarcascade_frontalface')</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">03</div>
+      <div class="pipe-content">
+        <h3>Cross-Correlation Sync Analysis</h3>
+        <p>The core detection signal: we compute the <strong>normalized cross-correlation</strong> between the audio RMS energy envelope and the lip motion signal. Real videos show high zero-lag correlation. Deepfakes show phase-shifted or decorrelated signals due to re-synthesized audio or lip animation.</p>
+        <code>scipy.signal.correlate(lip_motion, audio_rms)</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">04</div>
+      <div class="pipe-content">
+        <h3>Artifact Analysis</h3>
+        <p>Deepfake models introduce subtle blending artifacts at face boundaries. We use <strong>Laplacian sharpness variance</strong> comparison between the face region and background — discrepancies indicate GAN-based face synthesis.</p>
+        <code>cv2.Laplacian(face_roi, cv2.CV_64F).var()</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">05</div>
+      <div class="pipe-content">
+        <h3>Temporal Consistency</h3>
+        <p>Frame-to-frame delta analysis measures video smoothness. Deepfake models often produce temporal jitter or inconsistent frame transitions, captured by the <strong>coefficient of variation</strong> of inter-frame differences.</p>
+        <code>delta.std() / delta.mean()  # CV score</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">06</div>
+      <div class="pipe-content">
+        <h3>Sync Transformer Model</h3>
+        <p>A lightweight <strong>PyTorch Transformer</strong> (2 encoder layers, 4 attention heads) ingests joint audio-visual embeddings and outputs a binary authenticity score. Architecture inspired by <em>SyncNet</em> (Chung & Zisserman, 2016).</p>
+        <code>nn.TransformerEncoder(layer, num_layers=2)</code>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">07</div>
+      <div class="pipe-content">
+        <h3>Weighted Ensemble</h3>
+        <p>Final score is a weighted combination: <strong>Sync (40%) + Artifacts (25%) + Temporal (20%) + Model (15%)</strong>. Threshold at 0.5 determines the DEEPFAKE / AUTHENTIC verdict with confidence percentage.</p>
+        <code>score = 0.40·sync + 0.25·artifact + 0.20·temporal + 0.15·model</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="datasets-section">
+    <h2>Public Datasets</h2>
+    <div class="datasets-grid">
+      <div class="dataset-card">
+        <div class="ds-tag">Primary</div>
+        <h4>FaceForensics++</h4>
+        <p>1000 original + 4000 manipulated videos across 4 manipulation methods (Deepfakes, Face2Face, FaceSwap, NeuralTextures). The gold standard benchmark for deepfake detection.</p>
+        <a href="https://github.com/ondyari/FaceForensics" target="_blank">github.com/ondyari/FaceForensics →</a>
+      </div>
+      <div class="dataset-card">
+        <div class="ds-tag">Audio-Visual</div>
+        <h4>Lip Reading in the Wild (LRW)</h4>
+        <p>500 word classes from BBC broadcasts, providing authentic lip-sync pairs for training the audio-visual correlation model. 173,000+ utterances.</p>
+        <a href="https://www.robots.ox.ac.uk/~vgg/data/lip_reading/" target="_blank">robots.ox.ac.uk/~vgg/data/lip_reading →</a>
+      </div>
+      <div class="dataset-card">
+        <div class="ds-tag">Detection</div>
+        <h4>DFDC (DeepFake Detection Challenge)</h4>
+        <p>Facebook AI's large-scale dataset with 128K+ videos. Includes diverse demographics and novel synthesis methods not seen in FaceForensics++.</p>
+        <a href="https://ai.meta.com/datasets/dfdc/" target="_blank">ai.meta.com/datasets/dfdc →</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span class="logo-text">LipSync<strong>D</strong></span>
+    <span class="footer-sub">Audio-Video Forensics Research</span>
+  </div>
+</footer>
+</body>
+</html>
